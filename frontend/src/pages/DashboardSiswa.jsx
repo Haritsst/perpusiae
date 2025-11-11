@@ -1,6 +1,6 @@
 // src/pages/DashboardSiswa.jsx
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 function DashboardSiswa() {
   const navigate = useNavigate();
@@ -35,6 +35,12 @@ function DashboardSiswa() {
     }
   ]);
 
+  const [formData, setFormData] = useState({
+    bukuId: '', // Tadinya '1'
+    tanggalPinjam: '', // Tadinya '2025-06-15'
+    tanggalKembali: '', // Tadinya '2025-06-18'
+  });
+
   const handleLogout = () => {
     navigate('/');
   };
@@ -66,10 +72,12 @@ function DashboardSiswa() {
       <nav style={styles.navbar}>
         <div style={styles.navbarBrand}>📚 Perpustakaan Digital</div>
         <div style={styles.navbarMenu}>
-          <a href="#" style={styles.navLink}>Dashboard</a>
-          <a href="#" style={styles.navLink}>Peminjaman</a>
-          <a href="#" style={styles.navLink}>Riwayat</a>
-          <a href="#" style={styles.navLink}>Profil</a>
+          <Link to="/dashboard-siswa" style={styles.navLink}>Dashboard</Link>
+          <Link to="/siswa/peminjaman" style={styles.navLink}>Peminjaman</Link>
+          <Link to="/siswa/riwayat" style={styles.navLink}>Riwayat</Link>
+          <Link to="/siswa/profil" style={styles.navLink}>Profil</Link>
+          <Link to="/siswa/riwayat" style={styles.navLink}>Riwayat</Link>
+          <Link to="/siswa/pengembalian" style={styles.navLink}>Pengembalian</Link>
           <div style={styles.userInfo}>
             <div style={styles.userAvatar}>
               {user.name?.charAt(0) || 'U'}
@@ -117,15 +125,24 @@ function DashboardSiswa() {
         <div style={styles.quickActions}>
           <h2 style={styles.sectionTitle}>Menu Cepat</h2>
           <div style={styles.actionButtons}>
-            <button style={styles.actionBtn}>
+            <button 
+              style={styles.actionBtn}
+              onClick={() => navigate('/siswa/peminjaman')}
+            >
               <span>📖</span>
               <span>Pinjam Buku</span>
             </button>
-            <button style={styles.actionBtn}>
+            <button 
+              style={styles.actionBtn}
+              onClick={() => navigate('/siswa/pengembalian')} // <-- Navigasi
+            >
               <span>↩️</span>
               <span>Kembalikan Buku</span>
             </button>
-            <button style={styles.actionBtn}>
+            <button 
+              style={styles.actionBtn}
+              onClick={() => navigate('/siswa/profil')} // <-- Navigasi
+            >
               <span>👤</span>
               <span>Ubah Profil</span>
             </button>
