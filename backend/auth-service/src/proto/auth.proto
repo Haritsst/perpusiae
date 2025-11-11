@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "./proto/auth";
+
+// Service definition untuk autentikasi
+service AuthService {
+  // Login untuk siswa dan admin
+  rpc Login(LoginRequest) returns (LoginResponse);
+  
+  // Registrasi siswa baru
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  
+  // Validasi token JWT
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  
+  // Refresh token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  
+  // Logout
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  
+  // Change password
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+}
+
+// Request & Response Messages
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  bool remember_me = 3;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string message = 2;
+  string access_token = 3;
+  string refresh_token = 4;
+  UserInfo user = 5;
+}
+
+message RegisterRequest {
+  string full_name = 1;
+  string email = 2;
+  string nis = 3;
+  string phone = 4;
+  string class = 5;
+  string address = 6;
+  string password = 7;
+  string role = 8; // "siswa" atau "admin"
+}
+
+message RegisterResponse {
+  bool success = 1;
+  string message = 2;
+  string user_id = 3;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string email = 3;
+  string role = 4;
+  string message = 5;
+}
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  bool success = 1;
+  string access_token = 2;
+  string refresh_token = 3;
+}
+
+message LogoutRequest {
+  string token = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ChangePasswordRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+message ChangePasswordResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UserInfo {
+  string user_id = 1;
+  string email = 2;
+  string full_name = 3;
+  string role = 4;
+  string nis = 5;
+  string class = 6;
+}

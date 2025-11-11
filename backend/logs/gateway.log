@@ -1,0 +1,46 @@
+
+> api-gateway@1.0.0 dev
+> nodemon src/server.js
+
+[33m[nodemon] 3.1.10[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node src/server.js`[39m
+[HPM] Proxy created: /  -> http://localhost:3001
+[HPM] Proxy rewrite rule created: "^/api/users" ~> "/api/users"
+[HPM] Proxy created: /  -> http://localhost:3002
+[HPM] Proxy rewrite rule created: "^/api/books" ~> "/api/books"
+[HPM] Proxy created: /  -> http://localhost:3003
+[HPM] Proxy rewrite rule created: "^/api/loans" ~> "/api/loans"
+[HPM] Proxy created: /  -> http://localhost:3004
+[HPM] Proxy rewrite rule created: "^/api/returns" ~> "/api/returns"
+[HPM] Proxy created: /  -> http://localhost:3005
+[HPM] Proxy rewrite rule created: "^/api/reports" ~> "/api/reports"
+node:events:497
+      throw er; // Unhandled 'error' event
+      ^
+
+E[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+stenHandle [as _listen2] (node:net:1940:16)
+    at listenInCluster (node:net:1997:12)
+    at Server.listen (node:net:2102:7)
+    at Function.listen (C:\KULIAH\sm5\Integrasi Apl Enterprise\perpustakaan-fullstack\backend\api-gateway\node_modules\express\lib\application.js:635:24)
+    at Object.<anonymous> (C:\KULIAH\sm5\Integrasi Apl Enterprise\perpustakaan-fullstack\backend\api-gateway\src\server.js:249:5)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+    at Object..js (node:internal/modules/cjs/loader:1839:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+Emitted 'error' event on Server instance at:
+    at emitErrorNT (node:net:1976:8)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '::',
+  port: 3000
+}
+
+Node.js v22.20.0
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m

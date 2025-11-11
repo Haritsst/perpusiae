@@ -1,0 +1,220 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: perpustakaan_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: perpustakaan_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - perpustakaan_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: perpustakaan_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - perpustakaan_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ===== Services =====
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./auth-service/Dockerfile
+    container_name: auth_service
+    environment:
+      NODE_ENV: production
+      GRPC_PORT: 50051
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: perpustakaan_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: your-super-secret-jwt-key-change-this-in-production
+      JWT_REFRESH_SECRET: your-super-secret-refresh-key-change-this-in-production
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - perpustakaan_network
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./user-service/Dockerfile
+    container_name: user_service
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: perpustakaan_db
+      AUTH_SERVICE_URL: auth-service:50051
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - perpustakaan_network
+    restart: unless-stopped
+
+  book-service:
+    build:
+      context: .
+      dockerfile: ./book-service/Dockerfile
+    container_name: book_service
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: perpustakaan_db
+      AUTH_SERVICE_URL: auth-service:50051
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - perpustakaan_network
+    restart: unless-stopped
+
+  loan-service:
+    build:
+      context: .
+      dockerfile: ./loan-service/Dockerfile
+    container_name: loan_service
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: perpustakaan_db
+      AUTH_SERVICE_URL: auth-service:50051
+    ports:
+      - "3003:3003"
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - perpustakaan_network
+    restart: unless-stopped
+
+  return-service:
+    build:
+      context: .
+      dockerfile: ./return-service/Dockerfile
+    container_name: return_service
+    environment:
+      NODE_ENV: production
+      PORT: 3004
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: perpustakaan_db
+      AUTH_SERVICE_URL: auth-service:50051
+    ports:
+      - "3004:3004"
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - perpustakaan_network
+    restart: unless-stopped
+
+  report-service:
+    build:
+      context: .
+      dockerfile: ./report-service/Dockerfile
+    container_name: report_service
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres123
+      DB_NAME: perpustakaan_db
+      AUTH_SERVICE_URL: auth-service:50051
+    ports:
+      - "3005:3005"
+    depends_on:
+      - postgres
+      - auth-service
+    networks:
+      - perpustakaan_network
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: api_gateway
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      FRONTEND_URL: http://localhost:5173
+      AUTH_SERVICE_URL: auth-service:50051
+      USER_SERVICE_URL: http://user-service:3001
+      BOOK_SERVICE_URL: http://book-service:3002
+      LOAN_SERVICE_URL: http://loan-service:3003
+      RETURN_SERVICE_URL: http://return-service:3004
+      REPORT_SERVICE_URL: http://report-service:3005
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - user-service
+      - book-service
+      - loan-service
+      - return-service
+      - report-service
+    networks:
+      - perpustakaan_network
+    restart: unless-stopped
+
+networks:
+  perpustakaan_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
