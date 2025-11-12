@@ -15,6 +15,10 @@ import DashboardAdmin from './pages/DashboardAdmin'; // 2. Ini masih kita pakai
 import TambahBuku from './pages/TambahBuku';
 import DataBuku from './pages/DataBuku';
 import PinjamBukuAdmin from './pages/PinjamBukuAdmin';
+import LaporanPeminjaman from './pages/LaporanPeminjaman';
+import CetakLaporan from './pages/CetakLaporan';
+import ProfilAdmin from './pages/ProfilAdmin';
+import SettingsAdmin from './pages/SettingsAdmin';
 import './App.css';
 
 function App() {
@@ -36,11 +40,11 @@ function App() {
           <Route path="/admin/tambah-buku" element={<TambahBuku />} />
           <Route path="/admin/data-buku" element={<DataBuku />} />
           <Route path="/admin/pinjam-buku" element={<PinjamBukuAdmin />} />
-          {/* <Route path="/admin/pengembalian" element={...} /> */}
-          {/* <Route path="/admin/laporan" element={...} /> */}
-          {/* <Route path="/admin/profil" element={...} /> */}
-          {/* <Route path="/admin/settings" element={...} /> */}
+          <Route path="/admin/laporan" element={<LaporanPeminjaman />} />
+          <Route path="/admin/profil" element={<ProfilAdmin />} />
+          <Route path="/admin/settings" element={<SettingsAdmin />} />
         </Route>
+        <Route path="/admin/laporan/cetak" element={<CetakLaporan />} />
       </Routes>
     </Router>
   );

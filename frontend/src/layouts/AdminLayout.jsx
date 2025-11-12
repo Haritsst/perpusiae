@@ -30,7 +30,6 @@ function AdminLayout() { // Ganti nama
           </li>
           <li><Link to="/admin/data-buku" style={styles.menuLink}>📚 Data Buku</Link></li>
           <li><Link to="/admin/pinjam-buku" style={styles.menuLink}>📖 Pinjam Buku</Link></li>
-          <li><Link to="/admin/pengembalian" style={styles.menuLink}>↩️ Pengembalian</Link></li>
           <li><Link to="/admin/laporan" style={styles.menuLink}>📄 Laporan</Link></li>
           <li><Link to="/admin/profil" style={styles.menuLink}>👤 Profil</Link></li>
           <li><Link to="/admin/settings" style={styles.menuLink}>⚙️ Settings</Link></li>

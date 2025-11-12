@@ -1,5 +1,6 @@
 import { useState } from 'react';
-// Hapus 'useNavigate' dan 'handleLogout', karena sudah ada di Layout
+import { Link } from 'react-router-dom';
+
 
 function DashboardAdmin() {
   // State Anda (stats, recentBorrows) tetap di sini
@@ -91,10 +92,10 @@ function DashboardAdmin() {
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Menu Cepat</h2>
             <ul style={styles.quickLinks}>
-              <li><a href="#" style={styles.quickLink}>➕ Tambah Buku</a></li>
-              <li><a href="#" style={styles.quickLink}>✅ Approve Peminjaman</a></li>
-              <li><a href="#" style={styles.quickLink}>📊 Cetak Laporan</a></li>
-              <li><a href="#" style={styles.quickLink}>⚙️ Pengaturan Sistem</a></li>
+              <li><Link to="/admin/tambah-buku" style={styles.quickLink}>➕ Tambah Buku</Link></li>
+              <li><Link to="/admin/pinjam-buku" style={styles.quickLink}>✅ Approve Peminjaman</Link></li>
+              <li><Link to="/admin/laporan" style={styles.quickLink}>📊 Cetak Laporan</Link></li>
+              <li><Link to="/admin/settings" style={styles.quickLink}>⚙️ Pengaturan Sistem</Link></li>
             </ul>
           </div>
         </div>
