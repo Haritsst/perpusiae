@@ -98,61 +98,47 @@ exports.createLoan = async (req, res) => {
 };
 
 // GET /api/loans
-exports.getLoans = async (req, res) => {
+async function createLoan(req, res) {
   try {
-    const { title, borrower_name, status, page = 1, limit = 10 } = req.query;
-    const user_id = req.user.user_id;
-    const is_admin = req.user.role === 'admin';
-    const offset = (page - 1) * limit;
+    const { book_id, loan_date, return_date } = req.body;
+    const user_id = req.user.user_id; // dari authMiddleware
 
-    let query = `
-      SELECT 
-        l.loan_id, l.user_id, l.book_id, l.borrow_date, l.planned_return_date, 
-        l.actual_return_date, l.status, l.fine, l.notes, l.created_at,
-        u.full_name as borrower_name, u.nis, u.class,
-        b.title, b.author, b.year
-      FROM loans l
-      JOIN users u ON l.user_id = u.user_id
-      JOIN books b ON l.book_id = b.book_id
-      WHERE 1=1
+    if (!book_id || !loan_date || !return_date) {
+      return res.status(400).json({
+        success: false,
+        message: 'book_id, loan_date, dan return_date harus diisi'
+      });
+    }
+
+    // Validasi tanggal
+    if (new Date(loan_date) >= new Date(return_date)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tanggal kembali harus setelah tanggal pinjam'
+      });
+    }
+
+    // Insert ke DB
+    const query = `
+      INSERT INTO loans (user_id, book_id, loan_date, return_date, status, created_at)
+      VALUES ($1, $2, $3, $4, 'pending', NOW())
+      RETURNING loan_id, user_id, book_id, loan_date, return_date, status
     `;
-    const values = [];
+    const result = await pool.query(query, [user_id, book_id, loan_date, return_date]);
 
-    if (!is_admin) {
-      query += ` AND l.user_id = $${values.length + 1}`;
-      values.push(user_id);
-    }
-
-    if (title) {
-      query += ` AND LOWER(b.title) LIKE LOWER($${values.length + 1})`;
-      values.push(`%${title}%`);
-    }
-
-    if (borrower_name) {
-      query += ` AND LOWER(u.full_name) LIKE LOWER($${values.length + 1})`;
-      values.push(`%${borrower_name}%`);
-    }
-
-    if (status) {
-      query += ` AND l.status = $${values.length + 1}`;
-      values.push(status);
-    }
-
-    query += ` ORDER BY l.created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
-    values.push(limit, offset);
-
-    const result = await pool.query(query, values);
-
-    res.json({
+    res.status(201).json({
       success: true,
-      data: result.rows
+      message: 'Peminjaman berhasil diajukan',
+      data: result.rows[0]
     });
-
-  } catch (error) {
-    console.error('Get loans error:', error);
-    res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server' });
+  } catch (err) {
+    console.error('Error creating loan:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan pada server'
+    });
   }
-};
+}
 
 // GET /api/loans/:id
 exports.getLoanById = async (req, res) => {

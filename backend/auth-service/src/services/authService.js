@@ -6,9 +6,11 @@ const { generateAccessToken, generateRefreshToken, verifyAccessToken, verifyRefr
 const tokenBlacklist = new Set();
 
 // Login
+// ...existing code...
 async function Login(call, callback) {
   try {
-    const { email, password, remember_me } = call.request;
+    console.log('[auth-service] Login call.request =', call.request); // <<-- debug
+    const { email, password } = call.request;
 
     if (!email || !password) {
       return callback(null, {
@@ -16,71 +18,13 @@ async function Login(call, callback) {
         message: 'Email dan password harus diisi'
       });
     }
-
-    const query = `
-      SELECT user_id, email, full_name, password, role, nis, class 
-      FROM users 
-      WHERE email = $1 AND is_active = true AND deleted_at IS NULL
-    `;
-    const result = await pool.query(query, [email]);
-
-    if (result.rows.length === 0) {
-      return callback(null, {
-        success: false,
-        message: 'Email atau password salah'
-      });
-    }
-
-    const user = result.rows[0];
-    const isPasswordValid = await comparePassword(password, user.password);
-    
-    if (!isPasswordValid) {
-      return callback(null, {
-        success: false,
-        message: 'Email atau password salah'
-      });
-    }
-
-    const tokenExpiry = remember_me ? '7d' : '24h';
-    const accessToken = generateAccessToken(
-      { 
-        user_id: user.user_id, 
-        email: user.email, 
-        role: user.role 
-      },
-      tokenExpiry
-    );
-
-    const refreshToken = generateRefreshToken({ user_id: user.user_id });
-
-    await pool.query(
-      'UPDATE users SET last_login = NOW() WHERE user_id = $1',
-      [user.user_id]
-    );
-
-    callback(null, {
-      success: true,
-      message: 'Login berhasil',
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      user: {
-        user_id: user.user_id,
-        email: user.email,
-        full_name: user.full_name,
-        role: user.role,
-        nis: user.nis || '',
-        class: user.class || ''
-      }
-    });
-
+    // ...existing code...
   } catch (error) {
-    console.error('Login error:', error);
-    callback(null, {
-      success: false,
-      message: 'Terjadi kesalahan pada server'
-    });
+    // ...existing code...
   }
 }
+// ...existing code...
+
 
 // Register
 async function Register(call, callback) {

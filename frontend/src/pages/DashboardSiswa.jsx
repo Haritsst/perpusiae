@@ -1,58 +1,110 @@
-// src/pages/DashboardSiswa.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 
 function DashboardSiswa() {
   const navigate = useNavigate();
-  const [user] = useState({ name: 'John Siswa' });
-  const [stats] = useState({
-    borrowed: 3,
-    total: 15,
-    pending: 1,
+  const [user, setUser] = useState(null);
+  const [stats, setStats] = useState({
+    borrowed: 0,
+    total: 0,
+    pending: 0,
     fine: 0
   });
-  const [activities] = useState([
-    {
-      id: 1,
-      title: 'Laskar Pelangi - Andrea Hirata',
-      borrowDate: '5 Nov 2025',
-      returnDate: '12 Nov 2025',
-      status: 'approved'
-    },
-    {
-      id: 2,
-      title: 'Bumi Manusia - Pramoedya Ananta Toer',
-      borrowDate: '1 Nov 2025',
-      returnDate: '8 Nov 2025',
-      status: 'pending'
-    },
-    {
-      id: 3,
-      title: 'Negeri 5 Menara - Ahmad Fuadi',
-      borrowDate: '25 Okt 2025',
-      returnDate: '1 Nov 2025',
-      status: 'returned'
+  const [activities, setActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
+        // Set header authorization
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+        // Fetch user profile dari localStorage dulu (quick load)
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+
+        // Fetch loan statistics
+        try {
+          const statsRes = await api.get('/api/loans/stats');
+          setStats({
+            borrowed: statsRes.data.data?.active_loans || 0,
+            total: statsRes.data.data?.total_loans || 0,
+            pending: statsRes.data.data?.pending_loans || 0,
+            fine: statsRes.data.data?.total_fine || 0
+          });
+        } catch (statsErr) {
+          console.warn('Stats endpoint tidak tersedia:', statsErr.message);
+          // Set default jika endpoint belum ready
+          setStats({
+            borrowed: 0,
+            total: 0,
+            pending: 0,
+            fine: 0
+          });
+        }
+
+        // Fetch recent activities
+        try {
+          const activitiesRes = await api.get('/api/loans/recent');
+          setActivities(activitiesRes.data.data || []);
+        } catch (actErr) {
+          console.warn('Activities endpoint tidak tersedia:', actErr.message);
+          setActivities([]);
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+        setError('Gagal memuat data dashboard');
+        setLoading(false);
+
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/login');
+        }
+      }
+    };
+
+    fetchDashboardData();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        // Call logout endpoint jika ada
+        await api.post('/api/auth/logout');
+      }
+    } catch (err) {
+      console.warn('Logout API error:', err.message);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      api.defaults.headers.common['Authorization'] = '';
+      navigate('/');
     }
-  ]);
-
-  const [formData, setFormData] = useState({
-    bukuId: '', // Tadinya '1'
-    tanggalPinjam: '', // Tadinya '2025-06-15'
-    tanggalKembali: '', // Tadinya '2025-06-18'
-  });
-
-  const handleLogout = () => {
-    navigate('/');
   };
 
   const getStatusBadge = (status) => {
     const config = {
       pending: { bg: '#fff3cd', color: '#856404', text: 'Pending' },
       approved: { bg: '#d4edda', color: '#155724', text: 'Dipinjam' },
-      returned: { bg: '#d1ecf1', color: '#0c5460', text: 'Dikembalikan' }
+      returned: { bg: '#d1ecf1', color: '#0c5460', text: 'Dikembalikan' },
+      overdue: { bg: '#f8d7da', color: '#721c24', text: 'Overdue' }
     };
-    
+
     const s = config[status] || config.pending;
     return (
       <span style={{
@@ -68,22 +120,29 @@ function DashboardSiswa() {
     );
   };
 
+  if (loading) {
+    return <div style={styles.loading}>Memuat data...</div>;
+  }
+
+  if (error) {
+    return <div style={styles.error}>{error}</div>;
+  }
+
   return (
     <div style={styles.dashboardPage}>
       <nav style={styles.navbar}>
         <div style={styles.navbarBrand}>📚 Perpustakaan Digital</div>
         <div style={styles.navbarMenu}>
           <Link to="/dashboard-siswa" style={styles.navLink}>Dashboard</Link>
-          <Link to="/siswa/peminjaman" style={styles.navLink}>Peminjaman</Link>
-          <Link to="/siswa/riwayat" style={styles.navLink}>Riwayat</Link>
-          <Link to="/siswa/profil" style={styles.navLink}>Profil</Link>
+          <Link to="/siswa/peminjaman" style={styles.navLink}>Peminjaman</Link>
           <Link to="/siswa/riwayat" style={styles.navLink}>Riwayat</Link>
+          <Link to="/siswa/profil" style={styles.navLink}>Profil</Link>
           <Link to="/siswa/pengembalian" style={styles.navLink}>Pengembalian</Link>
           <div style={styles.userInfo}>
             <div style={styles.userAvatar}>
-              {user.name?.charAt(0) || 'U'}
+              {user?.full_name?.charAt(0) || 'U'}
             </div>
-            <span>{user.name}</span>
+            <span>{user?.full_name || 'User'}</span>
             <button onClick={handleLogout} style={styles.logoutBtn}>
               Logout
             </button>
@@ -93,7 +152,7 @@ function DashboardSiswa() {
 
       <div style={styles.container}>
         <div style={styles.welcomeCard}>
-          <h1 style={styles.welcomeTitle}>Selamat Datang, {user.name}! 👋</h1>
+          <h1 style={styles.welcomeTitle}>Selamat Datang, {user?.full_name}! 👋</h1>
           <p style={styles.welcomeDesc}>Kelola peminjaman buku dan akses layanan perpustakaan dengan mudah</p>
         </div>
 
@@ -119,7 +178,7 @@ function DashboardSiswa() {
           <div style={styles.statCard}>
             <div style={styles.statIcon}>💰</div>
             <div style={styles.statTitle}>Total Denda</div>
-            <div style={styles.statValue}>Rp {stats.fine.toLocaleString()}</div>
+            <div style={styles.statValue}>Rp {stats.fine.toLocaleString('id-ID')}</div>
           </div>
         </div>
 
@@ -135,14 +194,14 @@ function DashboardSiswa() {
             </button>
             <button 
               style={styles.actionBtn}
-              onClick={() => navigate('/siswa/pengembalian')} // <-- Navigasi
+              onClick={() => navigate('/siswa/pengembalian')}
             >
               <span>↩️</span>
               <span>Kembalikan Buku</span>
             </button>
             <button 
               style={styles.actionBtn}
-              onClick={() => navigate('/siswa/profil')} // <-- Navigasi
+              onClick={() => navigate('/siswa/profil')}
             >
               <span>👤</span>
               <span>Ubah Profil</span>
@@ -152,40 +211,31 @@ function DashboardSiswa() {
 
         <div style={styles.recentActivity}>
           <h2 style={styles.sectionTitle}>Aktivitas Terbaru</h2>
-          <ul style={styles.activityList}>
-            {activities.map(activity => (
-              <li key={activity.id} style={styles.activityItem}>
-                <div style={styles.activityInfo}>
-                  <h4 style={styles.activityTitle}>{activity.title}</h4>
-                  <p style={styles.activityDate}>
-                    Dipinjam: {activity.borrowDate} | 
-                    {activity.status === 'returned' ? ' Dikembalikan' : ' Kembali'}: {activity.returnDate}
-                  </p>
-                </div>
-                {getStatusBadge(activity.status)}
-              </li>
-            ))}
-          </ul>
+          {activities.length > 0 ? (
+            <ul style={styles.activityList}>
+              {activities.map(activity => (
+                <li key={activity.loan_id} style={styles.activityItem}>
+                  <div style={styles.activityInfo}>
+                    <h4 style={styles.activityTitle}>{activity.book_title}</h4>
+                    <p style={styles.activityDate}>
+                      Dipinjam: {new Date(activity.loan_date).toLocaleDateString('id-ID')} | 
+                      Kembali: {new Date(activity.return_date).toLocaleDateString('id-ID')}
+                    </p>
+                  </div>
+                  {getStatusBadge(activity.status)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ color: '#999' }}>Tidak ada aktivitas peminjaman</p>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-async function handleSubmit(e) {
-  e.preventDefault();
-  try {
-    const res = await api.post('/auth/login', { username, password }); // sesuaikan field body jika berbeda
-    const { token, user } = res.data;
-    if (token) localStorage.setItem('token', token);
-    if (user) localStorage.setItem('user', JSON.stringify(user));
-    // TODO: redirect ke halaman yang sesuai, mis. navigate('/dashboard')
-  } catch (err) {
-    console.error(err);
-    // TODO: tampilkan pesan error ke user, mis. setError(err.response?.data?.message || err.message)
-  }
-}
-
+// ...existing code...
 const styles = {
   dashboardPage: {
     background: '#f5f7fa',
@@ -344,5 +394,6 @@ const styles = {
     margin: 0,
   },
 };
+
 
 export default DashboardSiswa;

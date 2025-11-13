@@ -3,11 +3,11 @@ const router = express.Router();
 const bookController = require('../controllers/bookController');
 const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 
-// Public routes (dengan autentikasi)
-router.get('/', authenticateToken, bookController.getAllBooks);
-router.get('/:id', authenticateToken, bookController.getBookById);
+// Public routes (tanpa autentikasi)
+router.get('/', bookController.getAllBooks);   // GET /api/books -> proxied -> book-service '/' handled here
+router.get('/:id', bookController.getBookById);
 
-// Admin routes
+// Admin routes (butuh autentikasi)
 router.post('/', authenticateToken, requireAdmin, bookController.addBook);
 router.put('/:id', authenticateToken, requireAdmin, bookController.updateBook);
 router.delete('/:id', authenticateToken, requireAdmin, bookController.deleteBook);

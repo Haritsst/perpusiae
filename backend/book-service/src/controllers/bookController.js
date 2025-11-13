@@ -1,88 +1,42 @@
 const pool = require('../config/database');
 
 // Get all books
-exports.getAllBooks = async (req, res) => {
+async function getAllBooks(req, res) {
   try {
-    const { title, page = 1, limit = 10 } = req.query;
-    const offset = (page - 1) * limit;
-
-    let query = `
-      SELECT book_id, title, author, year, stock, available, created_at, updated_at
-      FROM books
-      WHERE deleted_at IS NULL
-    `;
-    const values = [];
-
-    if (title) {
-      query += ` AND LOWER(title) LIKE LOWER($${values.length + 1})`;
-      values.push(`%${title}%`);
-    }
-
-    query += ` ORDER BY created_at DESC LIMIT $${values.length + 1} OFFSET $${values.length + 2}`;
-    values.push(limit, offset);
-
-    const result = await pool.query(query, values);
-
-    let countQuery = 'SELECT COUNT(*) FROM books WHERE deleted_at IS NULL';
-    const countValues = [];
-    if (title) {
-      countQuery += ' AND LOWER(title) LIKE LOWER($1)';
-      countValues.push(`%${title}%`);
-    }
-    const countResult = await pool.query(countQuery, countValues);
-
-    res.json({
+    const query = 'SELECT book_id, title, author FROM books WHERE deleted_at IS NULL ORDER BY title ASC';
+    const result = await pool.query(query);
+    return res.status(200).json({
       success: true,
-      data: result.rows,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: parseInt(countResult.rows[0].count),
-        totalPages: Math.ceil(countResult.rows[0].count / limit)
-      }
+      message: 'Data buku berhasil diambil',
+      data: result.rows
     });
-
-  } catch (error) {
-    console.error('Get books error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Terjadi kesalahan pada server' 
-    });
+  } catch (err) {
+    console.error('Error fetching books:', err);
+    return res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server' });
   }
-};
+}
 
 // Get book by ID
-exports.getBookById = async (req, res) => {
+async function getBookById(req, res) {
   try {
     const { id } = req.params;
-
-    const query = `
-      SELECT book_id, title, author, year, stock, available, created_at, updated_at
-      FROM books
-      WHERE book_id = $1 AND deleted_at IS NULL
-    `;
+    const query = 'SELECT book_id, title, author FROM books WHERE book_id = $1 AND deleted_at IS NULL';
     const result = await pool.query(query, [id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Buku tidak ditemukan' 
-      });
+      return res.status(404).json({ success: false, message: 'Buku tidak ditemukan' });
     }
 
-    res.json({
+    return res.status(200).json({
       success: true,
+      message: 'Data buku berhasil diambil',
       data: result.rows[0]
     });
-
-  } catch (error) {
-    console.error('Get book detail error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Terjadi kesalahan pada server' 
-    });
+  } catch (err) {
+    console.error('Error fetching book:', err);
+    return res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server' });
   }
-};
+}
 
 // Add book (Admin only)
 exports.addBook = async (req, res) => {
@@ -217,4 +171,12 @@ exports.deleteBook = async (req, res) => {
       message: 'Terjadi kesalahan pada server' 
     });
   }
+};
+
+module.exports = {
+  getAllBooks,
+  getBookById,
+  addBook: exports.addBook,
+  updateBook: exports.updateBook,
+  deleteBook: exports.deleteBook
 };

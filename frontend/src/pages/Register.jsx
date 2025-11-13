@@ -18,14 +18,19 @@ function Register() {
   });
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    console.log('FormData:', formData);
+
+    if (!formData.nama || !formData.email || !formData.password) {
+      alert('Nama, email, dan password harus diisi!');
+      return;
+    }
 
     if (formData.password !== formData.confirm_password) {
       alert('Password tidak cocok!');
@@ -37,10 +42,28 @@ function Register() {
       return;
     }
 
-    // TODO: Kirim ke API backend
-    console.log('Data registrasi:', formData);
-    alert('Pendaftaran berhasil! Silakan login.');
-    navigate('/login');
+    try {
+      // Ubah nama field agar sesuai backend
+      const payload = {
+        full_name: formData.nama,        // nama -> full_name
+        nis: formData.nis,
+        email: formData.email,
+        phone: formData.no_hp,           // no_hp -> phone
+        class: formData.kelas,           // kelas -> class
+        jurusan: formData.jurusan,       // opsional (backend tidak terima, tapi tidak error)
+        address: formData.alamat,        // alamat -> address
+        password: formData.password,
+        role: 'siswa'                    // default role
+      };
+      
+      console.log('Payload:', payload);
+      const res = await api.post('/api/auth/register', payload);
+      alert(res.data?.message || 'Pendaftaran berhasil! Silakan login.');
+      navigate('/login');
+    } catch (err) {
+      console.error('Error response:', err.response);
+      alert(err.response?.data?.message || 'Pendaftaran gagal.');
+    }
   };
 
   return (
@@ -197,19 +220,6 @@ function Register() {
   );
 }
 
-async function handleSubmit(e) {
-  e.preventDefault();
-  try {
-    const res = await api.post('/auth/login', { username, password }); // sesuaikan field body jika berbeda
-    const { token, user } = res.data;
-    if (token) localStorage.setItem('token', token);
-    if (user) localStorage.setItem('user', JSON.stringify(user));
-    // TODO: redirect ke halaman yang sesuai, mis. navigate('/dashboard')
-  } catch (err) {
-    console.error(err);
-    // TODO: tampilkan pesan error ke user, mis. setError(err.response?.data?.message || err.message)
-  }
-}
 
 const styles = {
   registerPage: {

@@ -1,62 +1,176 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 
 function PeminjamanBuku() {
   const navigate = useNavigate();
-
-  // Data user (sesuai gambar)
-  const [user] = useState({ name: 'Harris Caine' }); 
   
-  // Data dummy untuk dropdown buku (nanti ini dari API)
-  const [books] = useState([
-    { id: 1, title: 'Nabi Muhammad Sang Pengasih' },
-    { id: 2, title: 'Laskar Pelangi' },
-    { id: 3, title: 'Bumi Manusia' },
-    { id: 4, title: 'Negeri 5 Menara' },
-  ]);
+  // State untuk user (dari localStorage)
+  const [user, setUser] = useState(null);
+  
+  // State untuk books (dari API)
+  const [books, setBooks] = useState([]);
+  const [booksLoading, setBooksLoading] = useState(true);
+  const [booksError, setBooksError] = useState('');
 
-  // State untuk form (diisi default sesuai gambar)
+  // State untuk form
   const [formData, setFormData] = useState({
-    bukuId: '', // Tadinya '1'
-    tanggalPinjam: '', // Tadinya '2025-06-15'
-    tanggalKembali: '', // Tadinya '2025-06-18'
+    book_id: '',
+    loan_date: '',
+    return_date: '',
   });
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleLogout = () => {
-    navigate('/');
-  };
+  // Fetch user dari localStorage & books dari API saat mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (!storedUser) {
+          navigate('/login');
+          return;
+        }
+        setUser(JSON.parse(storedUser));
+
+        const token = localStorage.getItem('token');
+        if (token) api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+        try {
+          const booksRes = await api.get('/api/books');
+          console.log('[PeminjamanBuku] booksRes:', booksRes);
+
+          // handle multiple possible response shapes
+          const list = booksRes?.data?.data ?? booksRes?.data ?? [];
+          setBooks(Array.isArray(list) ? list : []);
+        } catch (err) {
+          console.error('[PeminjamanBuku] error fetching /api/books:', {
+            message: err.message,
+            response: err.response?.data,
+            status: err.response?.status,
+            headers: err.response?.headers,
+            request: err.request
+          });
+
+          // fallback: coba langsung ke book-service (port 3002) untuk isolasi masalah gateway
+          try {
+            const direct = await fetch('http://localhost:3002/api/books', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+            if (direct.ok) {
+              const json = await direct.json();
+              console.log('[PeminjamanBuku] direct books:', json);
+              const list = json?.data ?? json;
+              setBooks(Array.isArray(list) ? list : []);
+              setBooksError(''); // clear error since fallback succeeded
+            } else {
+              const txt = await direct.text();
+              console.warn('[PeminjamanBuku] direct fetch failed:', direct.status, txt);
+              setBooksError('Gagal memuat daftar buku (gateway dan direct fetch gagal)');
+            }
+          } catch (directErr) {
+            console.error('[PeminjamanBuku] direct fetch error:', directErr);
+            setBooksError('Gagal memuat daftar buku');
+          }
+        }
+
+        setBooksLoading(false);
+      } catch (err) {
+        console.error('[PeminjamanBuku] unexpected error:', err);
+        setBooksError('Terjadi kesalahan saat memuat data');
+        setBooksLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [navigate]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.bukuId || !formData.tanggalPinjam || !formData.tanggalKembali) {
-      alert('Harap isi semua field!');
+    setSubmitError('');
+
+    // Validasi form
+    if (!formData.book_id || !formData.loan_date || !formData.return_date) {
+      setSubmitError('Harap isi semua field!');
       return;
     }
-    // TODO: Ganti dengan API call ke backend Anda (perpusiae)
-    console.log('Form disubmit:', {
-      siswa: user.name,
-      ...formData
-    });
-    alert('Peminjaman berhasil diajukan!');
-    // Arahkan ke halaman riwayat atau dashboard
-    navigate('/siswa/riwayat'); 
+
+    // Validasi tanggal
+    if (new Date(formData.loan_date) >= new Date(formData.return_date)) {
+      setSubmitError('Tanggal kembali harus setelah tanggal pinjam!');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const token = localStorage.getItem('token');
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Submit loan ke backend
+      const payload = {
+        book_id: formData.book_id,
+        loan_date: formData.loan_date,
+        return_date: formData.return_date,
+      };
+
+      const res = await api.post('/api/loans', payload);
+
+      if (res.data.success) {
+        alert('Peminjaman berhasil diajukan!');
+        // Redirect ke dashboard (untuk refresh stats)
+        navigate('/dashboard-siswa');
+      } else {
+        setSubmitError(res.data.message || 'Terjadi kesalahan');
+      }
+    } catch (err) {
+      console.error('Submit loan error:', err);
+      const msg = err.response?.data?.message || 'Gagal mengajukan peminjaman';
+      setSubmitError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        await api.post('/api/auth/logout');
+      }
+    } catch (err) {
+      console.warn('Logout error:', err.message);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      api.defaults.headers.common['Authorization'] = '';
+      navigate('/');
+    }
   };
 
   const handleKembali = () => {
-    navigate('/dashboard-siswa'); // Tombol "KEMBALI"
+    navigate('/dashboard-siswa');
   };
+
+  if (booksLoading) {
+    return (
+      <div style={styles.page}>
+        <div style={styles.loading}>Memuat data...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.page}>
-      {/* 1. Navbar (Sama persis dengan DashboardSiswa) */}
+      {/* Navbar */}
       <nav style={styles.navbar}>
         <div style={styles.navbarBrand}>📚 Perpustakaan Digital</div>
         <div style={styles.navbarMenu}>
@@ -64,12 +178,12 @@ function PeminjamanBuku() {
           <Link to="/siswa/peminjaman" style={{...styles.navLink, ...styles.navLinkActive}}>Peminjaman</Link>
           <Link to="/siswa/riwayat" style={styles.navLink}>Riwayat</Link>
           <Link to="/siswa/profil" style={styles.navLink}>Profil</Link>
-          <Link to="/siswa/riwayat" style={styles.navLink}>Riwayat</Link>
+          <Link to="/siswa/pengembalian" style={styles.navLink}>Pengembalian</Link>
           <div style={styles.userInfo}>
             <div style={styles.userAvatar}>
-              {user.name?.charAt(0) || 'H'}
+              {user?.full_name?.charAt(0) || 'U'}
             </div>
-            <span>{user.name}</span>
+            <span>{user?.full_name || 'User'}</span>
             <button onClick={handleLogout} style={styles.logoutBtn}>
               Logout
             </button>
@@ -77,78 +191,102 @@ function PeminjamanBuku() {
         </div>
       </nav>
 
-      {/* 2. Konten Halaman (Container & Card Form) */}
+      {/* Container */}
       <div style={styles.container}>
-        {/* Card untuk Form */}
+        {/* Form Card */}
         <div style={styles.formCard}>
-          <h2 style={styles.formTitle}>Tambah Peminjaman Buku</h2>
+          <h2 style={styles.formTitle}>Ajukan Peminjaman Buku</h2>
           
+          {submitError && (
+            <div style={styles.errorBox}>{submitError}</div>
+          )}
+
+          {booksError && (
+            <div style={styles.errorBox}>{booksError}</div>
+          )}
+
           <form onSubmit={handleSubmit}>
-            {/* Form Group: Nama Siswa */}
+            {/* Nama Siswa */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Nama Siswa</label>
               <input
                 type="text"
                 style={{...styles.input, ...styles.inputDisabled}}
-                value={user.name}
-                disabled // Nama siswa tidak bisa diubah
+                value={user?.full_name || ''}
+                disabled
               />
             </div>
 
-            {/* Form Group: Pilih Buku (Dropdown) */}
+            {/* NIS */}
+            <div style={styles.formGroup}>
+              <label style={styles.label}>NIS</label>
+              <input
+                type="text"
+                style={{...styles.input, ...styles.inputDisabled}}
+                value={user?.nis || ''}
+                disabled
+              />
+            </div>
+
+            {/* Pilih Buku */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Pilih Buku</label>
               <select
-                name="bukuId"
-                style={styles.input} // Kita pakai style input yang sama
-                value={formData.bukuId}
+                name="book_id"
+                style={styles.input}
+                value={formData.book_id}
                 onChange={handleChange}
                 required
               >
-                {/* <option value="">-- Pilih buku --</option> */}
                 <option value="">-- Pilih buku --</option>
                 {books.map(book => (
-                  <option key={book.id} value={book.id}>
-                    {book.title}
+                  <option key={book.book_id} value={book.book_id}>
+                    {book.title} (oleh {book.author || 'Penulis tidak diketahui'})
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Form Group: Tanggal Meminjam */}
+            {/* Tanggal Pinjam */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Tanggal Meminjam</label>
               <input
-                type="date" // Atribut ini yang memunculkan kalender
-                name="tanggalPinjam"
+                type="date"
+                name="loan_date"
                 style={styles.input}
-                value={formData.tanggalPinjam}
+                value={formData.loan_date}
                 onChange={handleChange}
-                onClick={(e) => e.target.showPicker()}
                 required
               />
             </div>
 
-            {/* Form Group: Tanggal Mengembalikan */}
+            {/* Tanggal Kembali */}
             <div style={styles.formGroup}>
               <label style={styles.label}>Tanggal Mengembalikan</label>
               <input
-                type="date" // Atribut ini yang memunculkan kalender
-                name="tanggalKembali"
+                type="date"
+                name="return_date"
                 style={styles.input}
-                value={formData.tanggalKembali}
+                value={formData.return_date}
                 onChange={handleChange}
-                onClick={(e) => e.target.showPicker()}
                 required
               />
             </div>
 
             {/* Tombol Aksi */}
             <div style={styles.buttonGroup}>
-              <button type="submit" style={styles.btnSimpan}>
-                SIMPAN
+              <button 
+                type="submit" 
+                style={styles.btnSimpan}
+                disabled={submitting}
+              >
+                {submitting ? 'Memproses...' : 'SIMPAN'}
               </button>
-              <button type="button" onClick={handleKembali} style={styles.btnKembali}>
+              <button 
+                type="button" 
+                onClick={handleKembali} 
+                style={styles.btnKembali}
+              >
                 KEMBALI
               </button>
             </div>
@@ -159,24 +297,8 @@ function PeminjamanBuku() {
   );
 }
 
-async function handleSubmit(e) {
-  e.preventDefault();
-  try {
-    const res = await api.post('/auth/login', { username, password }); // sesuaikan field body jika berbeda
-    const { token, user } = res.data;
-    if (token) localStorage.setItem('token', token);
-    if (user) localStorage.setItem('user', JSON.stringify(user));
-    // TODO: redirect ke halaman yang sesuai, mis. navigate('/dashboard')
-  } catch (err) {
-    console.error(err);
-    // TODO: tampilkan pesan error ke user, mis. setError(err.response?.data?.message || err.message)
-  }
-}
-
-// 3. Styles (Menyalin dari DashboardSiswa + Menambah style form)
 const styles = {
-  // Styles yang disalin dari DashboardSiswa.jsx
-  page: { // Mengganti nama 'dashboardPage'
+  page: {
     background: '#f5f7fa',
     minHeight: '100vh',
   },
@@ -197,14 +319,16 @@ const styles = {
     display: 'flex',
     gap: '20px',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   navLink: {
     color: 'white',
     textDecoration: 'none',
     padding: '8px 16px',
     borderRadius: '8px',
+    fontSize: '14px',
   },
-  navLinkActive: { // Style untuk menandai link aktif
+  navLinkActive: {
     background: 'rgba(255, 255, 255, 0.2)',
   },
   userInfo: {
@@ -230,28 +354,35 @@ const styles = {
     padding: '8px 16px',
     borderRadius: '8px',
     cursor: 'pointer',
+    fontSize: '14px',
   },
   container: {
     maxWidth: '1200px',
     margin: '30px auto',
     padding: '0 20px',
   },
-  
-  // Style baru untuk Form Card (mirip welcomeCard / quickActions)
   formCard: {
     background: 'white',
     borderRadius: '15px',
-    padding: '30px 40px', // Padding lebih tebal
+    padding: '30px 40px',
     boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-    maxWidth: '700px', // Batasi lebar form
-    margin: '0 auto', // Center form card
+    maxWidth: '700px',
+    margin: '0 auto',
   },
   formTitle: {
     color: '#333',
-    marginBottom: '30px', 
+    marginBottom: '30px',
     textAlign: 'center',
     fontSize: '1.75em',
     fontWeight: '600',
+  },
+  errorBox: {
+    background: '#f8d7da',
+    color: '#721c24',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '20px',
+    border: '1px solid #f5c6cb',
   },
   formGroup: {
     marginBottom: '20px',
@@ -273,7 +404,7 @@ const styles = {
     color: '#333',
   },
   inputDisabled: {
-    background: '#f5f7fa', // Warna abu-abu (sama dg background page)
+    background: '#f5f7fa',
     color: '#777',
     cursor: 'not-allowed',
   },
@@ -282,7 +413,6 @@ const styles = {
     gap: '15px',
     marginTop: '30px',
   },
-  // Tombol Simpan (menggunakan style gradient)
   btnSimpan: {
     padding: '12px 20px',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -293,17 +423,21 @@ const styles = {
     fontWeight: '600',
     cursor: 'pointer',
   },
-  // Tombol Kembali (abu-abu)
   btnKembali: {
     padding: '12px 20px',
-    background: '#6c757d', 
+    background: '#6c757d',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     fontSize: '0.9em',
     fontWeight: '600',
     cursor: 'pointer',
-  }
+  },
+  loading: {
+    padding: '40px 20px',
+    textAlign: 'center',
+    color: '#6b7280',
+  },
 };
 
 export default PeminjamanBuku;

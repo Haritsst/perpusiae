@@ -4,18 +4,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
 function Login() {
+  // ...existing code...
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
-  });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -28,25 +24,27 @@ function Login() {
     }
 
     try {
-      // TODO: Ganti dengan API call ke backend Anda
-      // const response = await fetch('/api/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
-      // const data = await response.json();
+      const res = await api.post('/api/auth/login', {
+        email: formData.email,
+        password: formData.password
+      });
 
-      // Demo: Langsung redirect
-      console.log('Login dengan:', formData);
-      
-      // Simulasi login
-      if (formData.email.includes('admin')) {
-        navigate('/dashboard-admin');
-      } else {
-        navigate('/dashboard-siswa');
+      // backend mengembalikan access_token, refresh_token, user
+      const { access_token, refresh_token, user } = res.data;
+
+      if (access_token) {
+        localStorage.setItem('token', access_token);
+        if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
+        if (user) localStorage.setItem('user', JSON.stringify(user));
+        api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       }
+
+      // arahkan berdasarkan role
+      if (user?.role === 'admin') navigate('/dashboard-admin');
+      else navigate('/dashboard-siswa');
     } catch (err) {
-      setError('Terjadi kesalahan. Silakan coba lagi.');
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || 'Login gagal. Silakan coba lagi.');
     }
   };
 
@@ -117,19 +115,6 @@ function Login() {
   );
 }
 
-async function handleSubmit(e) {
-  e.preventDefault();
-  try {
-    const res = await api.post('/auth/login', { username, password }); // sesuaikan field body jika berbeda
-    const { token, user } = res.data;
-    if (token) localStorage.setItem('token', token);
-    if (user) localStorage.setItem('user', JSON.stringify(user));
-    // TODO: redirect ke halaman yang sesuai, mis. navigate('/dashboard')
-  } catch (err) {
-    console.error(err);
-    // TODO: tampilkan pesan error ke user, mis. setError(err.response?.data?.message || err.message)
-  }
-}
 
 const styles = {
   loginPage: {

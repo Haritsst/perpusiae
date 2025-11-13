@@ -4,7 +4,7 @@ const router = express.Router();
 const loanController = require('../controllers/loanController');
 const { authenticateToken, requireAdmin } = require('../middleware/authMiddleware');
 
-router.post('/', authenticateToken, loanController.createLoan);
+router.post('/', authMiddleware, loanController.createLoan);
 router.get('/', authenticateToken, loanController.getLoans);
 router.get('/:id', authenticateToken, loanController.getLoanById);
 router.put('/:id/status', authenticateToken, requireAdmin, loanController.updateLoanStatus);

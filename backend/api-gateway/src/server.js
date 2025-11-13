@@ -30,23 +30,26 @@ app.use((req, res, next) => {
 // ========== AUTH ENDPOINTS (gRPC) ==========
 
 // Login
+// ...existing code...
 app.post('/api/auth/login', (req, res) => {
+  console.log('[api-gateway] POST /api/auth/login body=', JSON.stringify(req.body));
+  if (!authClient || !authClient.Login) {
+    console.error('[api-gateway] authClient or Login method missing', !!authClient, !!(authClient && authClient.Login));
+    return res.status(500).json({ success: false, message: 'gRPC client not ready' });
+  }
+
   authClient.Login(req.body, (error, response) => {
     if (error) {
-      console.error('Login error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Terjadi kesalahan pada server'
-      });
+      console.error('[api-gateway] authClient.Login error=', error);
+      return res.status(500).json({ success: false, message: 'Terjadi kesalahan pada server', error: error.message });
     }
-    
-    if (!response.success) {
-      return res.status(401).json(response);
-    }
-    
-    res.json(response);
+
+    console.log('[api-gateway] authClient.Login response=', response);
+    if (!response.success) return res.status(401).json(response); // or 400 sesuai behavior
+    res.status(200).json(response);
   });
 });
+// ...existing code...
 
 // Register
 app.post('/api/auth/register', (req, res) => {
