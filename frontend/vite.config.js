@@ -6,9 +6,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000', // Backend URL
+        target: 'http://localhost:3000', // <- ubah ke API Gateway di docker-compose
         changeOrigin: true,
         secure: false,
+        // pathRewrite tidak diperlukan karena gateway mendengarkan /api/...
       }
     }
   }

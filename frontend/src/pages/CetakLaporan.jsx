@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+
 
 function CetakLaporan() {
   const location = useLocation();
@@ -78,6 +80,20 @@ function CetakLaporan() {
       </table>
     </div>
   );
+}
+
+async function handleSubmit(e) {
+  e.preventDefault();
+  try {
+    const res = await api.post('/auth/login', { username, password }); // sesuaikan field body jika berbeda
+    const { token, user } = res.data;
+    if (token) localStorage.setItem('token', token);
+    if (user) localStorage.setItem('user', JSON.stringify(user));
+    // TODO: redirect ke halaman yang sesuai, mis. navigate('/dashboard')
+  } catch (err) {
+    console.error(err);
+    // TODO: tampilkan pesan error ke user, mis. setError(err.response?.data?.message || err.message)
+  }
 }
 
 // Styles khusus untuk Halaman Cetak
